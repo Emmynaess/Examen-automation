@@ -1,0 +1,32 @@
+name: Validate Data
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate-data:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies from requirements.txt
+      run: |
+        pip install -r requirements.txt
+
+    - name: Run validation script
+      run: python app.py
+
+    - name: Upload validation errors
+      uses: actions/upload-artifact@v3
+      with:
+        name: validation-errors
+        path: validation_errors.xlsx

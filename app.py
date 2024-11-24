@@ -1,5 +1,3 @@
-import pandas as pd
-
 def validate_data(file_path):
     df = pd.read_excel(file_path)
 
@@ -7,7 +5,7 @@ def validate_data(file_path):
 
     invalid_email = df[~df['Email'].str.contains(r'^[\w\.-]+@[\w\.-]+\.\w+$', na=False)]
 
-    invalid_phone = df[~df['Phone'].str.match(r'^\+46\d{9}$', na=False)]
+    invalid_phone = df[~df['Phone'].dropna().astype(str).str.match(r'^\+46\d{9}$')]
 
     invalid_price = df[df['Total Price (kr)'] < 0]
 
@@ -16,4 +14,4 @@ def validate_data(file_path):
     issues.to_excel("validation_errors.xlsx", index=False)
 
 if __name__ == "__main__":
-    validate_data("customer_data.xlsx")
+    validate_data("customer_data_with_errors.xlsx")

@@ -25,8 +25,20 @@ jobs:
     - name: Run validation script
       run: python app.py
 
+    - name: Commit and push validation errors
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        mkdir -p validation_reports
+        mv validation_errors.xlsx validation_reports/
+        git add validation_reports/
+        git commit -m "Add validation errors"
+        git push
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Upload validation errors
       uses: actions/upload-artifact@v3
       with:
         name: validation-errors
-        path: validation_errors.xlsx
+        path: validation_reports/validation_errors.xlsx

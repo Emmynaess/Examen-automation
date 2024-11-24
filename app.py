@@ -1,5 +1,3 @@
-import pandas as pd
-
 def validate_data(file_path):
     df = pd.read_excel(file_path)
 

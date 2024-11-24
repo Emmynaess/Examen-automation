@@ -16,5 +16,5 @@ def validate_data(file_path):
     issues.to_excel("validation_errors.xlsx", index=False)
 
 if __name__ == "__main__":
-    validate_data("customer_data_with_errors.xlsx")
+    validate_data("customer_data.xlsx")
 

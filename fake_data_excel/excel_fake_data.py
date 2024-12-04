@@ -175,4 +175,8 @@ def save_to_excel(df, filename):
     print(f"Excel file '{filename}' has been created.")
 
 customer_data = generate_test_data(5, error_chance=0.2)
+<<<<<<< HEAD
 save_to_excel(customer_data, "customer_data.xlsx")
+=======
+save_to_excel(customer_data, "customer_data.xlsx")
+>>>>>>> 2f5e1dc08971e89c009d350318330d722ccc1104

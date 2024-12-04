@@ -7,12 +7,13 @@ from config import AZURE_MAPS_API_KEY
 import time
 import logging
 import unicodedata
+from datetime import datetime
 
 fake = Faker("sv_SE")
 
 logging.basicConfig(level=logging.INFO)
 
-def generate_random_coordinates_sweden():
+def generate_coordinates():
     lat_mean = 59.0  
     lat_std = 2.0    
     lon_mean = 15.0  
@@ -59,7 +60,7 @@ def get_address_from_coordinates(lat, lon, api_key, max_retries=5):
         except requests.exceptions.RequestException as err:
             logging.error(f"Unknown error: {err}")
             break
-        lat, lon = generate_random_coordinates_sweden()
+        lat, lon = generate_coordinates()
         time.sleep(0.5)
     logging.error(f"Failed to retrieve address after {max_retries} attempts for coordinates ({lat}, {lon}).")
     return None, None, None
@@ -71,6 +72,13 @@ def clean_string(s):
     s = s.replace(' ', '')
     return s
 
+def generate_swedish_phone_number():
+    area_code = random.choice(["70", "72", "73", "76", "79"])
+    first_part = random.randint(100, 999)
+    second_part = random.randint(10, 99)
+    third_part = random.randint(10, 99)
+    return f"+46 {area_code}-{first_part} {second_part} {third_part}"
+
 def generate_test_data(rows=100, error_chance=0.2):
     domains = ["hotmail.com", "gmail.com", "outlook.com", "live.com", "yahoo.com", "icloud.com"]
 
@@ -78,18 +86,20 @@ def generate_test_data(rows=100, error_chance=0.2):
         "CustomerID": list(range(1, rows + 1)),
         "First Name": [fake.first_name() for _ in range(rows)],
         "Last Name": [fake.last_name() for _ in range(rows)],
-        "Birthdate": [fake.date_of_birth(minimum_age=18, maximum_age=90) for _ in range(rows)],
+        "Birthdate": [
+            fake.date_of_birth(minimum_age=18, maximum_age=90).strftime('%Y-%m-%d') for _ in range(rows)
+        ],
         "Address": [],
         "Postcode": [],
         "City": [],
-        "Phone": [fake.phone_number() for _ in range(rows)],
+        "Phone": [generate_swedish_phone_number() for _ in range(rows)],
         "Customer Category": [random.choice(["Private", "Business"]) for _ in range(rows)],
-        "Purchase Date": [fake.date_between(start_date='-1y', end_date='today') for _ in range(rows)],
+        "Purchase Date": [
+            fake.date_between(start_date='-3y', end_date='today').strftime('%Y-%m-%d') for _ in range(rows)
+        ],
         "Purchase Amount (SEK)": [round(random.uniform(100, 10000), 2) for _ in range(rows)],
         "Purchase Count": [random.randint(1, 50) for _ in range(rows)],
     }
-
-    data["Name"] = [f"{first} {last}" for first, last in zip(data["First Name"], data["Last Name"])]
 
     emails = []
     for first, last in zip(data["First Name"], data["Last Name"]):
@@ -102,7 +112,7 @@ def generate_test_data(rows=100, error_chance=0.2):
 
     for i in range(rows):
         for attempt in range(5):
-            lat, lon = generate_random_coordinates_sweden()
+            lat, lon = generate_coordinates()
             address, postcode, city = get_address_from_coordinates(lat, lon, AZURE_MAPS_API_KEY)
             if address and postcode and city:
                 break
@@ -123,7 +133,13 @@ def generate_test_data(rows=100, error_chance=0.2):
 
     df = pd.DataFrame(data)
 
-    df.dropna(subset=["Address", "Postcode", "City"], inplace=True)
+    df[['Street', 'Rest']] = df['Address'].str.split(',', n=1, expand=True)
+
+    df[['House Number', 'City From Address']] = df['Rest'].str.extract(r'(\d+)\s*(.*)')
+
+    df = df.drop(columns=['Address', 'Rest'])
+
+    df.dropna(subset=["Street", "Postcode", "City"], inplace=True)
 
     for idx in df.index:
         if random.random() < error_chance:
@@ -136,8 +152,6 @@ def generate_test_data(rows=100, error_chance=0.2):
                 elif "å" in name:
                     name_with_errors = name_with_errors.replace("å", "a", 1)
                 df.loc[idx, name_field] = name_with_errors
-
-                df.loc[idx, "Name"] = f"{df.loc[idx, 'First Name']} {df.loc[idx, 'Last Name']}"
 
                 first_email = clean_string(df.loc[idx, "First Name"])
                 last_email = clean_string(df.loc[idx, "Last Name"])
@@ -160,8 +174,5 @@ def save_to_excel(df, filename):
     df.to_excel(filename, index=False)
     print(f"Excel file '{filename}' has been created.")
 
-customer_data = generate_test_data(10, error_chance=0.2)
+customer_data = generate_test_data(5, error_chance=0.2)
 save_to_excel(customer_data, "customer_data.xlsx")
-
-
-

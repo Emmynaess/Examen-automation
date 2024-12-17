@@ -164,4 +164,8 @@ cython_debug/
 secrets
 config.py
 test.py
+test2.py
+excel_fake_data.py
+github_actions_code.py
 orginal.py
+test_connection_to_database.py

@@ -1,0 +1,31 @@
+name: Validate Customer IDs
+
+on:
+  workflow_dispatch: 
+
+jobs:
+  validate-and-update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run ensure_unique_ids script
+        run: |
+          python ensure_unique_ids.py
+
+      - name: Commit and push updated Excel file
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "Ensure unique IDs in customer_data.xlsx"
+          file_pattern: "customer_data_with_ids.xlsx"

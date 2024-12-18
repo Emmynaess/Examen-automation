@@ -77,13 +77,9 @@ def generate_valid_purchase_date():
             return purchase_date.strftime('%Y-%m-%d')
 
 
-def generate_data(rows=300, max_retries=10):
+def generate_data(rows=10, max_retries=10):
     domains = ["hotmail.com", "gmail.com", "outlook.com", "live.com", "icloud.com"]
     products = load_products_from_csv("products.csv")
-
-    if not products:
-        print("No products were loaded. Check the products.csv file.")
-        return None
 
     data = []
 
@@ -103,38 +99,34 @@ def generate_data(rows=300, max_retries=10):
         else:
             street, postcode, city, municipality = "Fallback Street", "Fallback Postcode", "Fallback City", "Fallback Municipality"
 
-        # Generera ett köp
-        purchase_date = generate_valid_purchase_date()
-        product = random.choice(products)  # Välj ett slumpmässigt produkt
-        quantity = random.randint(1, 5)
-        total_amount = product["price"] * quantity
+        purchase_count = random.randint(1, 5)
+        for _ in range(purchase_count):
+            purchase_date = generate_valid_purchase_date()
+            product = random.choice(products) 
+            quantity = random.randint(1, 5)
+            total_amount = product["price"] * quantity 
 
-        data.append({
-            "First Name": first_name,
-            "Last Name": last_name,
-            "Birthdate": birthdate,
-            "Phone": phone,
-            "Email": email,
-            "Customer Category": customer_category,
-            "Streetname": street,
-            "Postcode": postcode,
-            "City": city,
-            "Municipality": municipality,
-            "Purchase Date": purchase_date,
-            "Product": product["productName"],
-            "ProductID": product["productID"],
-            "Quantity": quantity,
-            "Price per Item": product["price"],
-            "Total Amount": total_amount
-        })
-
-    if not data:
-        print("No data was generated.")
-        return None
+            data.append({
+                "First Name": first_name,
+                "Last Name": last_name,
+                "Birthdate": birthdate,
+                "Phone": phone,
+                "Email": email,
+                "Customer Category": customer_category,
+                "Streetname": street,
+                "Postcode": postcode,
+                "City": city,
+                "Municipality": municipality,
+                "Purchase Date": purchase_date,
+                "Product": product["productName"], 
+                "ProductID": product["productID"], 
+                "Quantity": quantity,
+                "Price per Item": product["price"],
+                "Total Amount": total_amount
+            })
 
     df = pd.DataFrame(data)
     return df
-
 
 def introduce_realistic_errors(df, error_probability=0.05):
     for idx in df.index:
@@ -180,7 +172,7 @@ def introduce_realistic_errors(df, error_probability=0.05):
 
     return df
 
-def generate_and_corrupt_data(rows=200):
+def generate_and_corrupt_data(rows=10):
     df = generate_data(rows)
     df_with_errors = introduce_realistic_errors(df, error_probability=0.05)
     return df_with_errors
@@ -196,5 +188,5 @@ def save_to_excel(df, filename):
     df.to_excel(filename, index=False)
     print(f"Excel file '{filename}' has been created.")
 
-customer_data = generate_and_corrupt_data(1000)
+customer_data = generate_and_corrupt_data(10)
 save_to_excel(customer_data, "customer_data.xlsx")

@@ -29,7 +29,7 @@ jobs:
       - name: Move clean data to cleaned_data folder
         run: |
           mkdir -p cleaned_data
-          mv clean_customer_data.xlsx cleaned_data/clean_customer_data.xlsx
+          mv clean_data.xlsx cleaned_data/clean_data.xlsx
 
       - name: Move error data to validate_data folder
         run: |

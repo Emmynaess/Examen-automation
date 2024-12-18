@@ -2,8 +2,7 @@ name: Clean Customer Data
 
 on:
   push:
-    branches:
-      - main
+      
 
 jobs:
   clean-data:
@@ -27,15 +26,20 @@ jobs:
       - name: Clean customer data
         run: python clean_up.py
 
+      - name: Move clean data to cleaned_data folder
+        run: |
+          mkdir -p cleaned_data
+          mv clean_customer_data.xlsx cleaned_data/clean_customer_data.xlsx
+
       - name: Move error data to validate_data folder
         run: |
           mkdir -p validate_data
           mv errors.xlsx validate_data/errors.xlsx
 
-      - name: Commit and push error file
+      - name: Commit and push cleaned and error files
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
-          git add validate_data/errors.xlsx
-          git commit -m "Add errors.xlsx to validate_data folder"
+          git add cleaned_data/clean_customer_data.xlsx validate_data/errors.xlsx
+          git commit -m "Add cleaned and error data files"
           git push origin main

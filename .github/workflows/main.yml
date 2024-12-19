@@ -25,7 +25,7 @@ jobs:
 
       # Clean customer data
       - name: Clean customer data
-        run: python pipeline_scripts/clean_up.py
+        run: python pipeline_scripts/clean_up.py ../customer_data.xlsx
 
       # Commit and push cleaned and error files
       - name: Commit and push cleaned and error files

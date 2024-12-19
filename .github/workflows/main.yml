@@ -1,41 +1,47 @@
-name: Clean Customer Data
+name: Clean, Validate, and Upload Customer Data
 
 on:
-  push:
-      
+  workflow_dispatch: # Möjliggör manuell körning av workflow
 
 jobs:
   clean-data:
     runs-on: ubuntu-latest
 
     steps:
+      # Check out repository
       - name: Check out repository
         uses: actions/checkout@v3
         with:
           persist-credentials: true  
 
+      # Set up Python environment
       - name: Set up Python
         uses: actions/setup-python@v3
         with:
           python-version: '3.9'
 
+      # Install dependencies
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
 
+      # Clean customer data
       - name: Clean customer data
-        run: python clean_up.py
+        run: python pipeline_scripts/clean_up.py
 
+      # Move clean data to cleaned_data folder
       - name: Move clean data to cleaned_data folder
         run: |
           mkdir -p cleaned_data
           mv clean_data.xlsx cleaned_data/clean_data.xlsx
 
+      # Move error data to validate_data folder
       - name: Move error data to validate_data folder
         run: |
           mkdir -p validate_data
           mv errors.xlsx validate_data/errors.xlsx
 
+      # Commit and push cleaned and error files
       - name: Commit and push cleaned and error files
         run: |
           git config --global user.name "github-actions"
@@ -43,3 +49,94 @@ jobs:
           git add cleaned_data/clean_data.xlsx validate_data/errors.xlsx
           git commit -m "Add cleaned and error data files"
           git push origin main
+
+  validate-and-backup:
+    needs: clean-data # Kör endast om clean-data är lyckat
+    runs-on: ubuntu-latest
+
+    steps:
+      # Check out repository
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      # Set up Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.9'
+
+      # Install dependencies
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      # Validate cleaned data
+      - name: Validate cleaned data
+        run: python pipeline_scripts/validate_data.py cleaned_data/clean_data.xlsx
+
+      # Convert cleaned data to CSV
+      - name: Convert cleaned data to CSV
+        run: |
+          python pipeline_scripts/convert_to_csv.py cleaned_data/clean_data.xlsx cleaned_data/clean_data.csv
+
+      # Backup cleaned data to Azure Blob Storage
+      - name: Backup cleaned data to Azure Blob Storage
+        env:
+          AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
+          AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
+        run: |
+          az storage blob upload \
+            --account-name $AZURE_STORAGE_ACCOUNT \
+            --account-key $AZURE_STORAGE_KEY \
+            --container-name cleaned-data-backup \
+            --file cleaned_data/clean_data.csv \
+            --name clean_data_backup_$(date +'%Y%m%d%H%M%S').csv
+
+      # Verify cleaned data file exists
+      - name: Verify cleaned data exists
+        run: |
+          if [ ! -f "cleaned_data/clean_data.csv" ]; then
+            echo "Cleaned data file not found!"
+            exit 1
+          fi
+
+  test-db-connection-and-upload:
+    needs: validate-and-backup # Kör endast om validate-and-backup är lyckat
+    runs-on: ubuntu-latest
+
+    steps:
+      # Check out repository
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      # Set up Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.9'
+
+      # Install dependencies
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      # Test database connection
+      - name: Test database connection
+        env:
+          SQL_SERVER: ${{ secrets.SQL_SERVER }}
+          SQL_DATABASE: ${{ secrets.SQL_DATABASE }}
+          SQL_USER: ${{ secrets.SQL_USER }}
+          SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}
+        run: |
+          python pipeline_scripts/test_db_connection.py
+
+      # Upload clean data to SQL database
+      - name: Upload clean data to SQL database
+        env:
+          SQL_SERVER: ${{ secrets.SQL_SERVER }}
+          SQL_DATABASE: ${{ secrets.SQL_DATABASE }}
+          SQL_USER: ${{ secrets.SQL_USER }}
+          SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}
+        run: |
+          python pipeline_scripts/upload_to_sql.py cleaned_data/clean_data.xlsx
+

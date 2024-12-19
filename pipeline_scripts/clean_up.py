@@ -1,4 +1,5 @@
 import pandas as pd
+import os
 
 def split_clean_and_dirty_data(input_file, clean_file, dirty_file):
     df = pd.read_excel(input_file)
@@ -16,11 +17,14 @@ def split_clean_and_dirty_data(input_file, clean_file, dirty_file):
     dirty_data = df[invalid_conditions]
     clean_data = df[~invalid_conditions]
 
-    clean_data.to_excel(clean_file, index=False)
-    dirty_data.to_excel(dirty_file, index=False)
+    os.makedirs("cleaned_data", exist_ok=True)
+    os.makedirs("validate_data", exist_ok=True)
 
-    print(f"Clean data saved to '{clean_file}'")
-    print(f"Dirty data saved to '{dirty_file}'")
+    clean_data.to_excel(f"cleaned_data/{clean_file}", index=False)
+    dirty_data.to_excel(f"validate_data/{dirty_file}", index=False)
+
+    print(f"Clean data saved to 'cleaned_data/{clean_file}'")
+    print(f"Dirty data saved to 'validate_data/{dirty_file}'")
 
 if __name__ == "__main__":
     input_file = "customer_data.xlsx"

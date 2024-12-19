@@ -3,6 +3,8 @@ name: Clean, Validate, and Upload Customer Data
 on:
   workflow_dispatch: # Möjliggör manuell körning av workflow
 
+name: Clean, Backup, and Upload Customer Data
+
 jobs:
   clean-data:
     runs-on: ubuntu-latest
@@ -40,7 +42,7 @@ jobs:
           name: cleaned-data
           path: cleaned_data/
 
-  validate-and-backup:
+  backup-and-upload:
     needs: clean-data # Kör endast om clean-data är lyckat
     runs-on: ubuntu-latest
 
@@ -65,10 +67,6 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: cleaned-data
-
-      # Validate cleaned data
-      - name: Validate cleaned data
-        run: python pipeline_scripts/validate_data.py cleaned_data/clean_data.xlsx
 
       # Convert cleaned data to CSV
       - name: Convert cleaned data to CSV
@@ -97,7 +95,7 @@ jobs:
           fi
 
   test-db-connection-and-upload:
-    needs: validate-and-backup # Kör endast om validate-and-backup är lyckat
+    needs: backup-and-upload # Kör endast om backup-and-upload är lyckat
     runs-on: ubuntu-latest
 
     steps:

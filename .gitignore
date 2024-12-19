@@ -163,10 +163,6 @@ cython_debug/
 
 secrets
 config.py
-test.py
-test2.py
-github_actions_code.py
-orginal.py
-test_connection_to_database.py
-excel_fake_data.py
 server_and_database_name.py
+fake_data_original_test
+testing_dont_use_me

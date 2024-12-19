@@ -1,3 +1,5 @@
+# Forgot what this does, probably the exact same as generate_excel_code.py
+
 import pandas as pd
 from faker import Faker
 import random

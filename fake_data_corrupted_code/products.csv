@@ -24,7 +24,7 @@ productID,productName,price
 3023,Graphics Card,6599.00
 3024,CPU,6000.00
 3025,DDR5 RAM,999.00
-3026,Motherboard,999.99
+3026,Motherboard,999.00
 3027,Power Supply,899.00
 3028,Cooling Fan,9999.00
 3029,Case,999.00
@@ -33,7 +33,7 @@ productID,productName,price
 3032,Tablet,8500.00
 3033,Smartwatch,3800.00
 3034,E-Reader,1500.99
-3035,Bluetooth Speaker,1400.99
+3035,Bluetooth Speaker,1400.00
 3036,Soundbar,2600.00
 3037,Wireless Charger,799.00
 3038,Charging Cable,150.00
@@ -55,7 +55,7 @@ productID,productName,price
 3054,Camera,6999.00
 3055,Lens,1200.00
 3056,Tripod,180.00
-3057,Battery Pack,399.99
+3057,Battery Pack,399.00
 3058,Projector Screen,999.00
 3059,Cable Organizer,149.00
 3060,MicroSD Card,299.99

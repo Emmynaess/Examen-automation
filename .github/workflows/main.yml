@@ -27,26 +27,13 @@ jobs:
       - name: Clean customer data
         run: python pipeline_scripts/clean_up.py
 
-      # Move clean data to cleaned_data folder
-      - name: Move clean data to cleaned_data folder
-        run: |
-          mkdir -p cleaned_data
-          mv clean_data.xlsx cleaned_data/clean_data.xlsx
-
-      # Upload cleaned data as an artifact
-      - name: Upload cleaned data artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: cleaned-data
-          path: cleaned_data/
-
-        # Commit and push cleaned and error files
+      # Commit and push cleaned and error files
       - name: Commit and push cleaned and error files
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
           git add cleaned_data/clean_data.xlsx validate_data/errors.xlsx
-          git commit -m "Add cleaned and error data files"
+          git commit -m "Add cleaned and error data files" || echo "No changes to commit"
           git pull --rebase origin main
           git push origin main
 

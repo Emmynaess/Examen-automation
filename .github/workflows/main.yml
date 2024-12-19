@@ -3,8 +3,6 @@ name: Clean, Validate, and Upload Customer Data
 on:
   workflow_dispatch: # Möjliggör manuell körning av workflow
 
-name: Clean, Backup, and Upload Customer Data
-
 jobs:
   clean-data:
     runs-on: ubuntu-latest

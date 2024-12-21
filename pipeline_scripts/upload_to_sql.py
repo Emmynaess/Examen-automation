@@ -3,8 +3,8 @@ import pandas as pd
 import pyodbc
 
 def upload_to_azure():
-    # Läs in customer_data_deduped.xlsx
-    file_path = "customer_data_deduped.xlsx"  # Justera sökvägen om nödvändigt
+    # Uppdaterad sökväg till customer_data_deduped.xlsx
+    file_path = "customer_data_valid/customer_data_deduped.xlsx"  # Korrekt sökväg
     df = pd.read_excel(file_path)
 
     # Hämta anslutningsinformation från miljövariabler

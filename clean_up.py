@@ -27,7 +27,7 @@ def split_clean_and_dirty_data(input_file, clean_file, dirty_file):
     print(f"Dirty data saved to 'validate_data/{dirty_file}'")
 
 if __name__ == "__main__":
-    input_file = os.path.join(os.getcwd(), "customer_data.xlsx")
+    input_file = "customer_data.xlsx"
     clean_file = "clean_data.xlsx"
     dirty_file = "errors.xlsx"
 

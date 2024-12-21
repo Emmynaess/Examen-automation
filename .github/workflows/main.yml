@@ -12,6 +12,10 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v3
 
+      # List repository files to verify file structure
+      - name: List files in repository
+        run: ls -R
+
       # Set up Python environment
       - name: Set up Python
         uses: actions/setup-python@v3
@@ -32,25 +36,25 @@ jobs:
 
       # Run clean-up script
       - name: Run clean-up script
-        run: python pipeline_scripts/clean_up.py
+        run: python clean_up.py
 
-      # Verify cleaned_data files
-      - name: Verify cleaned_data files
-        run: ls cleaned_data/
+      # Verify output files
+      - name: Verify output files
+        run: |
+          ls clean_data.xlsx errors.xlsx
 
-      # Upload cleaned data artifact
+      # Upload cleaned and dirty data artifacts
       - name: Upload cleaned data artifact
         uses: actions/upload-artifact@v3
         with:
-          name: cleaned-data
-          path: cleaned_data/
+          name: clean-data
+          path: clean_data.xlsx
 
-      # Upload dirty data artifact
       - name: Upload dirty data artifact
         uses: actions/upload-artifact@v3
         with:
-          name: validate-data
-          path: validate_data/
+          name: errors-data
+          path: errors.xlsx
 
   validate-and-convert:
     needs: clean-data
@@ -71,22 +75,22 @@ jobs:
       - name: Download cleaned data artifact
         uses: actions/download-artifact@v3
         with:
-          name: cleaned-data
+          name: clean-data
 
       # Validate cleaned data
       - name: Validate cleaned data
-        run: python pipeline_scripts/validate_data.py cleaned_data/clean_data.xlsx
+        run: python validate_data.py clean_data.xlsx
 
       # Convert cleaned data to CSV
       - name: Convert cleaned data to CSV
-        run: python pipeline_scripts/convert_to_csv.py cleaned_data/clean_data.xlsx cleaned_data/clean_data.csv
+        run: python convert_to_csv.py clean_data.xlsx clean_data.csv
 
       # Upload converted CSV artifact
       - name: Upload CSV artifact
         uses: actions/upload-artifact@v3
         with:
           name: converted-data
-          path: cleaned_data/clean_data.csv
+          path: clean_data.csv
 
   backup-and-upload:
     needs: validate-and-convert
@@ -119,7 +123,7 @@ jobs:
             --account-name $AZURE_STORAGE_ACCOUNT \
             --account-key $AZURE_STORAGE_KEY \
             --container-name cleaned-data-backup \
-            --file cleaned_data/clean_data.csv \
+            --file clean_data.csv \
             --name clean_data_backup_$(date +'%Y%m%d%H%M%S').csv
 
       # Upload cleaned data to SQL database
@@ -129,4 +133,4 @@ jobs:
           SQL_DATABASE: ${{ secrets.SQL_DATABASE }}
           SQL_USER: ${{ secrets.SQL_USER }}
           SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}
-        run: python pipeline_scripts/upload_to_sql.py cleaned_data/clean_data.xlsx
+        run: python upload_to_sql.py clean_data.xlsx

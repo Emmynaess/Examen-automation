@@ -18,6 +18,6 @@ def deduplicate_purchases(input_file: str, output_file: str) -> None:
 
 if __name__ == "__main__":
     deduplicate_purchases(
-        input_file="customer_data_valid.xlsx",
-        output_file="customer_data_deduped.xlsx"
+        input_file="customer_data_valid/customer_data_valid.xlsx",  # Korrekt sökväg
+        output_file="customer_data_valid/customer_data_deduped.xlsx"  # Spara i samma mapp
     )

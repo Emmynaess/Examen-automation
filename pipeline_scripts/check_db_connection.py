@@ -1,20 +1,14 @@
 import os
 import pyodbc
 import sys
-from server_and_database_name import server_name, database_name, database_password, database_username
 
 def check_db_connection():
-    """
-    Försöker ansluta till en Azure SQL-databas med pyodbc.
-    Hämtar inloggningsuppgifter från miljövariabler.
-    Skriver ut 'Connection successful' om det lyckas,
-    annars kastas ett undantag (och pipeline ska faila).
-    """
+
     try:
-        server = server_name
-        database = database_name
-        user = database_username
-        password = database_password
+        server = os.environ["AZURE_SQL_SERVER"]
+        database = os.environ["AZURE_SQL_DATABASE"]
+        user = os.environ["AZURE_SQL_USER"]
+        password = os.environ["AZURE_SQL_PASSWORD"]
 
         connection_string = (
             f"Driver={{ODBC Driver 17 for SQL Server}};"

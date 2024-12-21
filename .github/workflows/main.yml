@@ -12,12 +12,6 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v3
 
-      # Create directories if not existing
-      - name: Prepare directories
-        run: |
-          mkdir -p cleaned_data
-          mkdir -p validate_data
-
       # Set up Python environment
       - name: Set up Python
         uses: actions/setup-python@v3
@@ -28,6 +22,14 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      # Verify that input file exists
+      - name: Verify input file
+        run: |
+          if [ ! -f "customer_data.xlsx" ]; then
+            echo "Input file customer_data.xlsx does not exist!"
+            exit 1
+          fi
+
       # Run clean-up script
       - name: Run clean-up script
         run: python pipeline_scripts/clean_up.py
@@ -35,10 +37,6 @@ jobs:
       # Verify cleaned_data files
       - name: Verify cleaned_data files
         run: ls cleaned_data/
-
-      # Verify validate_data files
-      - name: Verify validate_data files
-        run: ls validate_data/
 
       # Upload cleaned data artifact
       - name: Upload cleaned data artifact
@@ -54,7 +52,7 @@ jobs:
           name: validate-data
           path: validate_data/
 
-  validate-data:
+  validate-and-convert:
     needs: clean-data
     runs-on: ubuntu-latest
 
@@ -63,28 +61,35 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v3
 
-      # Download dirty data artifact
-      - name: Download dirty data artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: validate-data
-
       # Set up Python environment
       - name: Set up Python
         uses: actions/setup-python@v3
         with:
           python-version: '3.9'
 
-      # Install dependencies
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      # Download cleaned data artifact
+      - name: Download cleaned data artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: cleaned-data
 
-      # Run validation script
-      - name: Run validation script
-        run: python pipeline_scripts/validate_data.py validate_data/errors.xlsx
+      # Validate cleaned data
+      - name: Validate cleaned data
+        run: python pipeline_scripts/validate_data.py cleaned_data/clean_data.xlsx
+
+      # Convert cleaned data to CSV
+      - name: Convert cleaned data to CSV
+        run: python pipeline_scripts/convert_to_csv.py cleaned_data/clean_data.xlsx cleaned_data/clean_data.csv
+
+      # Upload converted CSV artifact
+      - name: Upload CSV artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: converted-data
+          path: cleaned_data/clean_data.csv
 
   backup-and-upload:
-    needs: validate-data
+    needs: validate-and-convert
     runs-on: ubuntu-latest
 
     steps:
@@ -98,19 +103,11 @@ jobs:
         with:
           python-version: '3.9'
 
-      # Install dependencies
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      # Download cleaned data artifact
-      - name: Download cleaned data artifact
+      # Download converted data artifact
+      - name: Download converted data artifact
         uses: actions/download-artifact@v3
         with:
-          name: cleaned-data
-
-      # Convert cleaned data to CSV
-      - name: Convert cleaned data to CSV
-        run: python pipeline_scripts/convert_to_csv.py cleaned_data/clean_data.xlsx cleaned_data/clean_data.csv
+          name: converted-data
 
       # Backup cleaned data to Azure Blob Storage
       - name: Backup cleaned data to Azure Blob Storage
@@ -125,42 +122,8 @@ jobs:
             --file cleaned_data/clean_data.csv \
             --name clean_data_backup_$(date +'%Y%m%d%H%M%S').csv
 
-  test-db-connection-and-upload:
-    needs: backup-and-upload
-    runs-on: ubuntu-latest
-
-    steps:
-      # Check out repository
-      - name: Check out repository
-        uses: actions/checkout@v3
-
-      # Set up Python environment
-      - name: Set up Python
-        uses: actions/setup-python@v3
-        with:
-          python-version: '3.9'
-
-      # Install dependencies
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      # Download cleaned data artifact
-      - name: Download cleaned data artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: cleaned-data
-
-      # Test database connection
-      - name: Test database connection
-        env:
-          SQL_SERVER: ${{ secrets.SQL_SERVER }}
-          SQL_DATABASE: ${{ secrets.SQL_DATABASE }}
-          SQL_USER: ${{ secrets.SQL_USER }}
-          SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}
-        run: python pipeline_scripts/test_db_connection.py
-
-      # Upload clean data to SQL database
-      - name: Upload clean data to SQL database
+      # Upload cleaned data to SQL database
+      - name: Upload cleaned data to SQL database
         env:
           SQL_SERVER: ${{ secrets.SQL_SERVER }}
           SQL_DATABASE: ${{ secrets.SQL_DATABASE }}

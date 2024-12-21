@@ -1,7 +1,7 @@
 name: Split, Deduplicate, and Upload Data
 
 on:
-  push:
+  workflow_dispatch:
     
 
 permissions:

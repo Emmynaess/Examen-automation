@@ -1,0 +1,46 @@
+name: Generate and Split Data
+
+on:
+  push:
+    branches:
+      - main
+  # Du kan även lägga till 'pull_request' eller andra events här om du vill.
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          # Ange den Python-version du vill använda
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Generate customer data
+        run: |
+          python generate_excel_code.py
+          # Ersätt med namnet på ditt "generate_excel"-skript om det är något annat
+          # Ex: python generate_excel_code.py
+
+      - name: Split valid and invalid data
+        run: |
+          python split_data.py
+          # Detta skript förväntas läsa 'customer_data.xlsx' och skapa:
+          #   - customer_data_valid.xlsx
+          #   - customer_data_invalid.xlsx
+
+      # Valfritt steg för att kunna hämta filerna som "artifacts" från GitHub Actions
+      - name: Upload excel artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: excel-split
+          path: |
+            customer_data_valid.xlsx
+            customer_data_invalid.xlsx

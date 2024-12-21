@@ -12,9 +12,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v3
 
-      # List repository files for debugging
-      - name: List files in repository
-        run: ls -R
+      # Create directories if not existing
+      - name: Prepare directories
+        run: |
+          mkdir -p cleaned_data
+          mkdir -p validate_data
 
       # Set up Python environment
       - name: Set up Python
@@ -34,6 +36,10 @@ jobs:
       - name: Verify cleaned_data files
         run: ls cleaned_data/
 
+      # Verify validate_data files
+      - name: Verify validate_data files
+        run: ls validate_data/
+
       # Upload cleaned data artifact
       - name: Upload cleaned data artifact
         uses: actions/upload-artifact@v3
@@ -48,8 +54,37 @@ jobs:
           name: validate-data
           path: validate_data/
 
+  validate-data:
+    needs: clean-data
+    runs-on: ubuntu-latest
+
+    steps:
+      # Check out repository
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      # Download dirty data artifact
+      - name: Download dirty data artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: validate-data
+
+      # Set up Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.9'
+
+      # Install dependencies
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Run validation script
+      - name: Run validation script
+        run: python pipeline_scripts/validate_data.py validate_data/errors.xlsx
+
   backup-and-upload:
-    needs: clean-data # Kör endast om clean-data lyckas
+    needs: validate-data
     runs-on: ubuntu-latest
 
     steps:
@@ -90,16 +125,8 @@ jobs:
             --file cleaned_data/clean_data.csv \
             --name clean_data_backup_$(date +'%Y%m%d%H%M%S').csv
 
-      # Verify cleaned data file exists
-      - name: Verify cleaned data exists
-        run: |
-          if [ ! -f "cleaned_data/clean_data.csv" ]; then
-            echo "Cleaned data file not found!"
-            exit 1
-          fi
-
   test-db-connection-and-upload:
-    needs: backup-and-upload # Kör endast om backup-and-upload lyckas
+    needs: backup-and-upload
     runs-on: ubuntu-latest
 
     steps:
@@ -116,6 +143,12 @@ jobs:
       # Install dependencies
       - name: Install dependencies
         run: pip install -r requirements.txt
+
+      # Download cleaned data artifact
+      - name: Download cleaned data artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: cleaned-data
 
       # Test database connection
       - name: Test database connection

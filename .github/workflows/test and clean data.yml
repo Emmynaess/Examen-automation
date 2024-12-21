@@ -1,8 +1,9 @@
 name: Split, Deduplicate, and Upload Data
 
 on:
-  workflow_dispatch:
-    
+  push:
+    branches:
+      - main
 
 permissions:
   contents: write  # Viktigt för att kunna pusha tillbaka changes
@@ -34,6 +35,7 @@ jobs:
         run: |
           git config user.name "GitHub Actions"
           git config user.email "[email protected]"
+          git pull origin main  # Lägg till en git pull innan push
           git add customer_data_valid/customer_data_valid.xlsx customer_data_invalid/customer_data_invalid.xlsx
           git commit -m "Update splitted data [skip ci]" || echo "No changes to commit"
           git push origin HEAD:main
@@ -67,6 +69,7 @@ jobs:
         run: |
           git config user.name "GitHub Actions"
           git config user.email "[email protected]"
+          git pull origin main  # Lägg till en git pull innan push
           git add customer_data_valid/customer_data_deduped.xlsx
           git commit -m "Update deduplicated data [skip ci]" || echo "No changes to commit"
           git push origin HEAD:main

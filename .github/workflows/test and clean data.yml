@@ -6,7 +6,7 @@ on:
       - main
 
 permissions:
-  contents: write  # Viktigt så att Actions får behörighet att pusha filer
+  contents: write  # Viktigt för att kunna pusha tillbaka changes
 
 jobs:
   build:
@@ -16,8 +16,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v3
         with:
-          # Viktigt att klona hela historiken så att vi kan göra nya commits
-          fetch-depth: 0
+          fetch-depth: 0  # så att vi kan göra nya commits
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -30,21 +29,18 @@ jobs:
 
       - name: Run split_data.py
         run: |
-          python split_data.py
-        # Här förväntas:
-        # 1) 'customer_data.xlsx' redan finnas i repot
-        # 2) 'split_data.py' skapa:
-        #    - customer_data_valid.xlsx
-        #    - customer_data_invalid.xlsx
+          python pipeline_scripts/split_data.py
+        # Detta script förväntas läsa 'customer_data.xlsx'
+        # och skapa:
+        #  - customer_data_valid/customer_data_valid.xlsx
+        #  - customer_data_invalid/customer_data_invalid.xlsx
 
       - name: Commit splitted files
         run: |
           git config user.name "GitHub Actions"
           git config user.email "[email protected]"
-          git add customer_data_valid.xlsx customer_data_invalid.xlsx
-          # Om inga ändringar finns (d.v.s. filerna identiska), faila inte.
+          git add customer_data_valid/customer_data_valid.xlsx customer_data_invalid/customer_data_invalid.xlsx
           git commit -m "Update splitted data [skip ci]" || echo "No changes to commit"
           git push origin HEAD:main
         env:
-          # Använd GITHUB_TOKEN för att pusha (kräver permissions: contents: write)
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

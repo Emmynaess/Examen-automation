@@ -27,8 +27,12 @@ def split_clean_and_dirty_data(input_file, clean_file, dirty_file):
     print(f"Dirty data saved to 'validate_data/{dirty_file}'")
 
 if __name__ == "__main__":
-    input_file = "customer_data.xlsx"
+    input_file = "../customer_data.xlsx"
     clean_file = "clean_data.xlsx"
     dirty_file = "errors.xlsx"
+
+    if not os.path.exists(input_file):
+        print(f'input file {input_file} does not exist')
+        exit(1)
 
     split_clean_and_dirty_data(input_file, clean_file, dirty_file)

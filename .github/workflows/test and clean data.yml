@@ -1,9 +1,7 @@
 name: Split, Deduplicate, and Upload Data
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch: # Möjliggör manuell körning av workflow
 
 permissions:
   contents: write  # Viktigt för att kunna pusha tillbaka changes

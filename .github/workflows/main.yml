@@ -12,6 +12,12 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v3
 
+      # Create directories if not existing
+      - name: Prepare directories
+        run: |
+          mkdir -p cleaned_data
+          mkdir -p validate_data
+
       # Set up Python environment
       - name: Set up Python
         uses: actions/setup-python@v3
@@ -20,25 +26,65 @@ jobs:
 
       # Install dependencies
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
 
-      # Clean customer data
-      - name: Clean customer data
-        run: python pipeline_scripts/clean_up.py ../customer_data.xlsx
+      # Run clean-up script
+      - name: Run clean-up script
+        run: python pipeline_scripts/clean_up.py
 
-      # Commit and push cleaned and error files
-      - name: Commit and push cleaned and error files
-        run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "actions@github.com"
-          git add cleaned_data/clean_data.xlsx validate_data/errors.xlsx
-          git commit -m "Add cleaned and error data files" || echo "No changes to commit"
-          git pull --rebase origin main
-          git push origin main
+      # Verify cleaned_data files
+      - name: Verify cleaned_data files
+        run: ls cleaned_data/
+
+      # Verify validate_data files
+      - name: Verify validate_data files
+        run: ls validate_data/
+
+      # Upload cleaned data artifact
+      - name: Upload cleaned data artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: cleaned-data
+          path: cleaned_data/
+
+      # Upload dirty data artifact
+      - name: Upload dirty data artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: validate-data
+          path: validate_data/
+
+  validate-data:
+    needs: clean-data
+    runs-on: ubuntu-latest
+
+    steps:
+      # Check out repository
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      # Download dirty data artifact
+      - name: Download dirty data artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: validate-data
+
+      # Set up Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.9'
+
+      # Install dependencies
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Run validation script
+      - name: Run validation script
+        run: python pipeline_scripts/validate_data.py validate_data/errors.xlsx
 
   backup-and-upload:
-    needs: clean-data # Kör endast om clean-data är lyckat
+    needs: validate-data
     runs-on: ubuntu-latest
 
     steps:
@@ -54,8 +100,7 @@ jobs:
 
       # Install dependencies
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
 
       # Download cleaned data artifact
       - name: Download cleaned data artifact
@@ -65,8 +110,7 @@ jobs:
 
       # Convert cleaned data to CSV
       - name: Convert cleaned data to CSV
-        run: |
-          python pipeline_scripts/convert_to_csv.py cleaned_data/clean_data.xlsx cleaned_data/clean_data.csv
+        run: python pipeline_scripts/convert_to_csv.py cleaned_data/clean_data.xlsx cleaned_data/clean_data.csv
 
       # Backup cleaned data to Azure Blob Storage
       - name: Backup cleaned data to Azure Blob Storage
@@ -81,16 +125,8 @@ jobs:
             --file cleaned_data/clean_data.csv \
             --name clean_data_backup_$(date +'%Y%m%d%H%M%S').csv
 
-      # Verify cleaned data file exists
-      - name: Verify cleaned data exists
-        run: |
-          if [ ! -f "cleaned_data/clean_data.csv" ]; then
-            echo "Cleaned data file not found!"
-            exit 1
-          fi
-
   test-db-connection-and-upload:
-    needs: backup-and-upload # Kör endast om backup-and-upload är lyckat
+    needs: backup-and-upload
     runs-on: ubuntu-latest
 
     steps:
@@ -106,8 +142,13 @@ jobs:
 
       # Install dependencies
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
+
+      # Download cleaned data artifact
+      - name: Download cleaned data artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: cleaned-data
 
       # Test database connection
       - name: Test database connection
@@ -116,8 +157,7 @@ jobs:
           SQL_DATABASE: ${{ secrets.SQL_DATABASE }}
           SQL_USER: ${{ secrets.SQL_USER }}
           SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}
-        run: |
-          python pipeline_scripts/test_db_connection.py
+        run: python pipeline_scripts/test_db_connection.py
 
       # Upload clean data to SQL database
       - name: Upload clean data to SQL database
@@ -126,5 +166,4 @@ jobs:
           SQL_DATABASE: ${{ secrets.SQL_DATABASE }}
           SQL_USER: ${{ secrets.SQL_USER }}
           SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}
-        run: |
-          python pipeline_scripts/upload_to_sql.py cleaned_data/clean_data.xlsx
+        run: python pipeline_scripts/upload_to_sql.py cleaned_data/clean_data.xlsx

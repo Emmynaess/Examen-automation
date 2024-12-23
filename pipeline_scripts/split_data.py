@@ -20,14 +20,15 @@ def main():
     df["Phone"] = df["Phone"].apply(format_phone_number)
 
     invalid_conditions = (
-        df["First Name"].str.contains(r'\d', na=False) |
-        ~df["Email"].str.contains("@", na=False) |
-        ~df["Phone"].apply(is_valid_phone_number) | 
-        df["Streetname"].isin(["No Street"]) |
-        df["Postcode"].isin(["No Postcode"]) |
-        df["City"].isin(["No City"]) |
-        df["Municipality"].isin(["No Municipality"])
+        df["First Name"].str.contains(r'\d', na=False) | 
+        ~df["Email"].str.contains("@", na=False) |  
+        ~df["Phone"].apply(is_valid_phone_number) |  
+        df["Streetname"].isin(["No Street", "Fallback Street"]) |  
+        df["Postcode"].isin(["No Postcode", "Fallback Postcode"]) |  
+        df["City"].isin(["No City", "Fallback City"]) |  
+        df["Municipality"].isin(["No Municipality", "Fallback Municipality"])  
     )
+
 
     df_invalid = df[invalid_conditions]
     df_valid = df[~invalid_conditions]

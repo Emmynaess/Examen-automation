@@ -23,33 +23,67 @@ def upload_to_azure():
     cursor = conn.cursor()
 
     for index, row in df.iterrows():
-        cursor.execute("""
-            INSERT INTO Customer (FirstName, LastName, Birthdate, CustomerCategory)
-            OUTPUT INSERTED.CustomerID
-            VALUES (?, ?, ?, ?)
-        """, row['First Name'], row['Last Name'], row['Birthdate'], row['Customer Category'])
-        customer_id = cursor.fetchone()[0]
-
-        cursor.execute("""
-            INSERT INTO CustomerAddress (CustomerID, StreetName, Postalcode, City, Municipality)
-            VALUES (?, ?, ?, ?, ?)
-        """, customer_id, row['Streetname'], row['Postcode'], row['City'], row['Municipality'])
-
-        cursor.execute("""
-            INSERT INTO CustomerContactInformation (CustomerID, Phone, Email)
-            VALUES (?, ?, ?)
-        """, customer_id, row['Phone'], row['Email'])
-
-        cursor.execute("""
-            SELECT COUNT(1) FROM Product WHERE ProductID = ?
-        """, row['ProductID'])
-        if cursor.fetchone()[0] > 0:
+        try:
+          
             cursor.execute("""
-                INSERT INTO Purchase (CustomerID, ProductID, PurchaseDate, Quantity, TotalAmount)
-                VALUES (?, ?, ?, ?, ?)
-            """, customer_id, row['ProductID'], row['Purchase Date'], row['Quantity'], row['Total Amount'])
-        else:
-            print(f"Produkt med ProductID {row['ProductID']} saknas i Product-tabellen.")
+                IF NOT EXISTS (
+                    SELECT 1 FROM Customer
+                    WHERE FirstName = ? AND LastName = ? AND Birthdate = ?
+                )
+                BEGIN
+                    INSERT INTO Customer (FirstName, LastName, Birthdate, CustomerCategory)
+                    VALUES (?, ?, ?, ?)
+                END
+            """, row['First Name'], row['Last Name'], row['Birthdate'], row['First Name'], row['Last Name'], row['Birthdate'], row['Customer Category'])
+
+         
+            cursor.execute("""
+                SELECT CustomerID FROM Customer
+                WHERE FirstName = ? AND LastName = ? AND Birthdate = ?
+            """, row['First Name'], row['Last Name'], row['Birthdate'])
+            customer_id = cursor.fetchone()[0]
+
+            
+            cursor.execute("""
+                IF NOT EXISTS (
+                    SELECT 1 FROM CustomerAddress
+                    WHERE CustomerID = ? AND StreetName = ? AND Postalcode = ? AND City = ? AND Municipality = ?
+                )
+                BEGIN
+                    INSERT INTO CustomerAddress (CustomerID, StreetName, Postalcode, City, Municipality)
+                    VALUES (?, ?, ?, ?, ?)
+                END
+            """, customer_id, row['Streetname'], row['Postcode'], row['City'], row['Municipality'],
+                customer_id, row['Streetname'], row['Postcode'], row['City'], row['Municipality'])
+
+            
+            cursor.execute("""
+                IF NOT EXISTS (
+                    SELECT 1 FROM CustomerContactInformation
+                    WHERE CustomerID = ? AND Phone = ? AND Email = ?
+                )
+                BEGIN
+                    INSERT INTO CustomerContactInformation (CustomerID, Phone, Email)
+                    VALUES (?, ?, ?)
+                END
+            """, customer_id, row['Phone'], row['Email'],
+                customer_id, row['Phone'], row['Email'])
+
+            
+            cursor.execute("""
+                IF NOT EXISTS (
+                    SELECT 1 FROM Purchase
+                    WHERE CustomerID = ? AND ProductID = ? AND PurchaseDate = ?
+                )
+                BEGIN
+                    INSERT INTO Purchase (CustomerID, ProductID, PurchaseDate, Quantity, TotalAmount)
+                    VALUES (?, ?, ?, ?, ?)
+                END
+            """, customer_id, row['ProductID'], row['Purchase Date'], customer_id, row['ProductID'], row['Purchase Date'], row['Quantity'], row['Total Amount'])
+
+        except Exception as e:
+            print(f"Fel på rad {index}: {e}")
+            continue
 
     conn.commit()
     cursor.close()

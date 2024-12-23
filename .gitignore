@@ -162,12 +162,6 @@ cython_debug/
 #.idea/
 
 secrets
-config.py
+fake_data_correct_code
 server_and_database_name.py
-fake_data_original_test
-testing_dont_use_me
-fake_data_correct_code
-testar.py
-tom.py
-first_test_pipeline_scripts
-fake_data_correct_code
+config.py

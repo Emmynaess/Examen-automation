@@ -1,4 +1,4 @@
-# Forgot what this does, probably the exact same as generate_excel_code.py
+# This code generates customer who buys more than one product
 
 import pandas as pd
 from faker import Faker

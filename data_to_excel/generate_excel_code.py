@@ -1,27 +1,24 @@
-# This code generates customer who buys more than one product
+# This code generate one customer, one bought item (no duplicates)
 
 import pandas as pd
 from faker import Faker
 import random
 import requests
+import numpy as np
+from config import AZURE_MAPS_API_KEY
+import time
+import logging
 import unicodedata
 from datetime import datetime
 import os
-from config import AZURE_MAPS_API_KEY
 
 fake = Faker("sv_SE")
-
-# Counters for unique IDs
-customer_id_counter = 1001
-address_id_counter = 2001
-contact_id_counter = 3001
-purchase_id_counter = 4001
+logging.basicConfig(level=logging.INFO)
 
 def load_products_from_csv(filename):
     try:
         filepath = os.path.join(os.path.dirname(__file__), filename)
         products_df = pd.read_csv(filepath)
-        products_df["ProductID"] = range(3001, 3001 + len(products_df))
         return products_df.to_dict(orient="records")
     except Exception as e:
         print(f"Failed to load products from {filename}: {e}")
@@ -41,23 +38,24 @@ def get_address_from_coordinates(lat, lon, api_key):
         'language': 'sv-SE',
         'countrySet': 'SE'
     }
-    try:
-        response = requests.get(url, params=params, timeout=10)
-        response.raise_for_status()
-        data = response.json()
-        addresses = data.get('addresses', [])
-        if addresses:
-            address_info = addresses[0].get('address', {})
-            street = address_info.get('streetName', 'No Street')
-            house_number = address_info.get('streetNumber', '')
-            postcode = address_info.get('postalCode', 'No Postcode')
-            city = address_info.get('municipalitySubdivision', 'No City')
-            municipality = address_info.get('municipality', 'No Municipality')
-            full_street = f"{street} {house_number}".strip()
-            return full_street, postcode, city, municipality
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching address from coordinates: {e}")
-    return "No Street", "No Postcode", "No City", "No Municipality"
+
+    response = requests.get(url, params=params, timeout=10)
+    response.raise_for_status()
+    data = response.json()
+    addresses = data.get('addresses', [])
+
+    if addresses:
+        address_info = addresses[0].get('address', {})
+        street = address_info.get('streetName', 'No Street')
+        house_number = address_info.get('streetNumber', '')
+        postcode = address_info.get('postalCode', 'No Postcode')
+        city = address_info.get('municipalitySubdivision', 'No City')
+        municipality = address_info.get('municipality', 'No Municipality')
+
+        full_street = f"{street} {house_number}".strip()
+        return full_street, postcode, city, municipality
+    else:
+        return "No Street", "No Postcode", "No City", "No Municipality"
 
 def clean_string(s):
     s = unicodedata.normalize('NFKD', s)
@@ -75,28 +73,23 @@ def generate_swedish_phone_number():
 
 def generate_valid_purchase_date():
     today = datetime.today().date()
-    return fake.date_between(start_date='-2y', end_date=today).strftime('%Y-%m-%d')
+    while True:
+        purchase_date = fake.date_between(start_date='-1y', end_date=today)
+        if purchase_date <= today:
+            return purchase_date.strftime('%Y-%m-%d')
 
-def generate_unique_ids():
-    global customer_id_counter, address_id_counter, contact_id_counter, purchase_id_counter
-    customer_id = int(customer_id_counter) 
-    customer_id_counter += 1
-    address_id = int(address_id_counter)
-    address_id_counter += 1
-    contact_id = int(contact_id_counter)
-    contact_id_counter += 1
-    return customer_id, address_id, contact_id
 
-def generate_data(rows=10, max_retries=10):
+def generate_data(rows=20, max_retries=10):
     domains = ["hotmail.com", "gmail.com", "outlook.com", "live.com", "icloud.com"]
     products = load_products_from_csv("products.csv")
 
+    if not products:
+        print("No products were loaded. Check the products.csv file.")
+        return None
+
     data = []
-    global purchase_id_counter
 
     for i in range(rows):
-        # Assign IDs
-        customer_id, address_id, contact_id = generate_unique_ids()
         first_name = fake.first_name()
         last_name = fake.last_name()
         birthdate = fake.date_of_birth(minimum_age=18, maximum_age=70).strftime('%Y-%m-%d')
@@ -112,41 +105,38 @@ def generate_data(rows=10, max_retries=10):
         else:
             street, postcode, city, municipality = "Fallback Street", "Fallback Postcode", "Fallback City", "Fallback Municipality"
 
-        purchase_count = random.randint(1, 5)
-        for _ in range(purchase_count):
-            purchase_id = purchase_id_counter
-            purchase_id_counter += 1
+        # Generera ett köp
+        purchase_date = generate_valid_purchase_date()
+        product = random.choice(products)  # Välj ett slumpmässigt produkt
+        quantity = random.randint(1, 5)
+        total_amount = product["price"] * quantity
 
-            purchase_date = generate_valid_purchase_date()
-            product = random.choice(products)
-            quantity = random.randint(1, 5)
-            total_amount = product["price"] * quantity
+        data.append({
+            "First Name": first_name,
+            "Last Name": last_name,
+            "Birthdate": birthdate,
+            "Phone": phone,
+            "Email": email,
+            "Customer Category": customer_category,
+            "Streetname": street,
+            "Postcode": postcode,
+            "City": city,
+            "Municipality": municipality,
+            "Purchase Date": purchase_date,
+            "Product": product["productName"],
+            "ProductID": product["productID"],
+            "Quantity": quantity,
+            "Price per Item": product["price"],
+            "Total Amount": total_amount
+        })
 
-            data.append({
-                "CustomerID": customer_id,
-                "AddressID": address_id,
-                "ContactID": contact_id,
-                "PurchaseID": purchase_id,
-                "First Name": first_name,
-                "Last Name": last_name,
-                "Birthdate": birthdate,
-                "Phone": phone,
-                "Email": email,
-                "Customer Category": customer_category,
-                "Streetname": street,
-                "Postcode": postcode,
-                "City": city,
-                "Municipality": municipality,
-                "Purchase Date": purchase_date,
-                "ProductID": product["productID"],
-                "Product": product["productName"],
-                "Quantity": quantity,
-                "Price per Item": product["price"],
-                "Total Amount": total_amount
-            })
+    if not data:
+        print("No data was generated.")
+        return None
 
     df = pd.DataFrame(data)
     return df
+
 
 def introduce_realistic_errors(df, error_probability=0.05):
     for idx in df.index:
@@ -192,16 +182,21 @@ def introduce_realistic_errors(df, error_probability=0.05):
 
     return df
 
-def generate_and_corrupt_data(rows=10):
+def generate_and_corrupt_data(rows=20):
     df = generate_data(rows)
     df_with_errors = introduce_realistic_errors(df, error_probability=0.05)
     return df_with_errors
 
 def save_to_excel(df, filename):
+    df["ProductID"] = df["ProductID"].astype(str)
+    
     df = df.sort_values(by="Purchase Date", ascending=False)
-    df.to_excel(filename, index=False, float_format="%.0f")
+    df = df.groupby("Purchase Date", group_keys=False).apply(
+        lambda x: x.sample(frac=1)
+    ).reset_index(drop=True)
+    df = df.sort_values(by="Purchase Date", ascending=False).reset_index(drop=True)
+    df.to_excel(filename, index=False)
     print(f"Excel file '{filename}' has been created.")
 
-if __name__ == "__main__":
-    customer_data = generate_and_corrupt_data(10)
-    save_to_excel(customer_data, "customer_data.xlsx")
+customer_data = generate_and_corrupt_data(20)
+save_to_excel(customer_data, "customer_data.xlsx")

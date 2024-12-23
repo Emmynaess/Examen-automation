@@ -125,6 +125,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Force fetch and reset repository
+        run: |
+          git fetch --all
+          git reset --hard origin/main
+
+      - name: Verify deduplicated file exists
+        run: |
+          if [ ! -f "customer_data_valid/customer_data_deduped.xlsx" ]; then
+            echo "Deduplicated file is missing in upload_data job!";
+            exit 1;
+          fi
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:

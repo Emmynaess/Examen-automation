@@ -162,6 +162,5 @@ cython_debug/
 #.idea/
 
 secrets
-fake_data_correct_code
 server_and_database_name.py
 config.py

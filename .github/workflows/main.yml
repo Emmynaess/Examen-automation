@@ -1,136 +1,157 @@
-name: Clean, Validate, and Upload Customer Data
+name: Split, Deduplicate, and Upload Data to SQL Database
 
 on:
-  workflow_dispatch: # Möjliggör manuell körning av workflow
+  workflow_dispatch:
+
+permissions:
+  contents: write  
 
 jobs:
-  clean-data:
+  split_data:
     runs-on: ubuntu-latest
-
     steps:
-      # Check out repository
       - name: Check out repository
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-      # List repository files to verify file structure
-      - name: List files in repository
-        run: ls -R
-
-      # Set up Python environment
       - name: Set up Python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
-      # Install dependencies
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      # Verify that input file exists
-      - name: Verify input file
+      - name: Upgrade pip and install dependencies
         run: |
-          if [ ! -f "customer_data.xlsx" ]; then
-            echo "Input file customer_data.xlsx does not exist!"
-            exit 1
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run split_data.py
+        run: |
+          python pipeline_scripts/split_data.py
+
+      - name: Verify files created
+        run: |
+          if [ ! -f "customer_data_valid/customer_data_valid.xlsx" ] || [ ! -f "customer_data_invalid/customer_data_invalid.xlsx" ]; then
+            echo "The required files were not created!";
+            exit 1;
           fi
 
-      # Run clean-up script
-      - name: Run clean-up script
-        run: python clean_up.py
-
-      # Verify output files
-      - name: Verify output files
+      - name: Commit splitted files
         run: |
-          ls clean_data.xlsx errors.xlsx
+          git config user.name "GitHub Actions"
+          git config user.email "[email protected]"
+          git pull origin main 
+          git add customer_data_valid/customer_data_valid.xlsx customer_data_invalid/customer_data_invalid.xlsx
+          git commit -m "Update splitted data [skip ci]" || echo "No changes to commit"
+          git push origin HEAD:main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Upload cleaned and dirty data artifacts
-      - name: Upload cleaned data artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: clean-data
-          path: clean_data.xlsx
-
-      - name: Upload dirty data artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: errors-data
-          path: errors.xlsx
-
-  validate-and-convert:
-    needs: clean-data
+  deduplicate:
     runs-on: ubuntu-latest
-
+    needs: split_data
     steps:
-      # Check out repository
       - name: Check out repository
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-      # Set up Python environment
       - name: Set up Python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
-      # Download cleaned data artifact
-      - name: Download cleaned data artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: clean-data
+      - name: Upgrade pip and install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      # Validate cleaned data
-      - name: Validate cleaned data
-        run: python validate_data.py clean_data.xlsx
+      - name: Verify input file for deduplication
+        run: |
+          if [ ! -f "customer_data_valid/customer_data_valid.xlsx" ]; then
+            echo "Input file for deduplication is missing! Attempting to recreate...";
+            python pipeline_scripts/split_data.py;
+          fi
 
-      # Convert cleaned data to CSV
-      - name: Convert cleaned data to CSV
-        run: python convert_to_csv.py clean_data.xlsx clean_data.csv
+      - name: Run check_for_duplicates.py
+        run: |
+          python pipeline_scripts/check_for_duplicates.py
 
-      # Upload converted CSV artifact
-      - name: Upload CSV artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: converted-data
-          path: clean_data.csv
+      - name: Commit deduplicated file
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "[email protected]"
+          git pull origin main 
+          git add customer_data_valid/customer_data_deduped.xlsx
+          git commit -m "Update deduplicated data [skip ci]" || echo "No changes to commit"
+          git push origin HEAD:main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  backup-and-upload:
-    needs: validate-and-convert
+  check_connection:
     runs-on: ubuntu-latest
-
+    needs: deduplicate
     steps:
-      # Check out repository
       - name: Check out repository
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-      # Set up Python environment
       - name: Set up Python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
-      # Download converted data artifact
-      - name: Download converted data artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: converted-data
-
-      # Backup cleaned data to Azure Blob Storage
-      - name: Backup cleaned data to Azure Blob Storage
-        env:
-          AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
-          AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
+      - name: Upgrade pip and install dependencies
         run: |
-          az storage blob upload \
-            --account-name $AZURE_STORAGE_ACCOUNT \
-            --account-key $AZURE_STORAGE_KEY \
-            --container-name cleaned-data-backup \
-            --file clean_data.csv \
-            --name clean_data_backup_$(date +'%Y%m%d%H%M%S').csv
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      # Upload cleaned data to SQL database
-      - name: Upload cleaned data to SQL database
+      - name: Check database connection
         env:
-          SQL_SERVER: ${{ secrets.SQL_SERVER }}
-          SQL_DATABASE: ${{ secrets.SQL_DATABASE }}
-          SQL_USER: ${{ secrets.SQL_USER }}
-          SQL_PASSWORD: ${{ secrets.SQL_PASSWORD }}
-        run: python upload_to_sql.py clean_data.xlsx
+          AZURE_SQL_SERVER: ${{ secrets.AZURE_SQL_SERVER }}
+          AZURE_SQL_DATABASE: ${{ secrets.AZURE_SQL_DATABASE }}
+          AZURE_SQL_USER: ${{ secrets.AZURE_SQL_USER }}
+          AZURE_SQL_PASSWORD: ${{ secrets.AZURE_SQL_PASSWORD }}
+        run: |
+          python pipeline_scripts/check_db_connection.py
+
+  upload_data:
+    runs-on: ubuntu-latest
+    needs: check_connection
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Force fetch and reset repository
+        run: |
+          git fetch --all
+          git reset --hard origin/main
+
+      - name: Verify deduplicated file exists
+        run: |
+          if [ ! -f "customer_data_valid/customer_data_deduped.xlsx" ]; then
+            echo "Deduplicated file is missing in upload_data job!";
+            exit 1;
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Upgrade pip and install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Upload deduplicated data to Azure SQL
+        env:
+          AZURE_SQL_SERVER: ${{ secrets.AZURE_SQL_SERVER }}
+          AZURE_SQL_DATABASE: ${{ secrets.AZURE_SQL_DATABASE }}
+          AZURE_SQL_USER: ${{ secrets.AZURE_SQL_USER }}
+          AZURE_SQL_PASSWORD: ${{ secrets.AZURE_SQL_PASSWORD }}
+        run: |
+          python pipeline_scripts/upload_to_sql.py

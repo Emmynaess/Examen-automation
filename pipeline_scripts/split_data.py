@@ -40,7 +40,7 @@ def main():
 
     print(f"Totalt antal rader: {len(df)}")
     print(f"Valid: {len(df_valid)} | Invalid: {len(df_invalid)}")
-    print("Filer skapade:")
+    print("Följande filer skapades:")
     print("  - customer_data_valid/customer_data_valid.xlsx")
     print("  - customer_data_invalid/customer_data_invalid.xlsx")
 

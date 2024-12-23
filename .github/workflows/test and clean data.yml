@@ -1,4 +1,4 @@
-name: Split, Deduplicate, and Upload Data to Azure SQL Database
+name: Split, Deduplicate, and Upload Data
 
 on:
   workflow_dispatch:
@@ -29,10 +29,10 @@ jobs:
         run: |
           python pipeline_scripts/split_data.py
 
-      - name: Kontrollera output från split_data.py
+      - name: Verify files created
         run: |
-          if [ ! -f "customer_data_valid/customer_data_valid.xlsx" ]; then
-            echo "Filen saknas efter split_data.py!";
+          if [ ! -f "customer_data_valid/customer_data_valid.xlsx" ] || [ ! -f "customer_data_invalid/customer_data_invalid.xlsx" ]; then
+            echo "The required files were not created!";
             exit 1;
           fi
 
@@ -66,11 +66,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Kontrollera inputfil för deduplicering
+      - name: Verify input file for deduplication
         run: |
           if [ ! -f "customer_data_valid/customer_data_valid.xlsx" ]; then
-            echo "Inputfil för deduplicering saknas!";
-            exit 1;
+            echo "Input file for deduplication is missing! Attempting to recreate...";
+            python pipeline_scripts/split_data.py;
           fi
 
       - name: Run check_for_duplicates.py
